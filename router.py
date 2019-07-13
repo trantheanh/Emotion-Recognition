@@ -80,8 +80,10 @@ def detect():
     results = emotion_model.predict_([image])
     if results[0] == 'happy':
         mesage = random.choice(happy_messages)
+    elif results[0] == 'sad' or results[0] == 'angry':
+        mesage = random.choice(sad_messages)
     else:
-        mesage = "Cháu thấy cụ lạ ghê"
+        mesage = 'Cháu thấy lạ ghê ạ'
 
     mesage = {"emotion": results[0], "message":mesage}
     send_sync_push("Thread-1", mesage)

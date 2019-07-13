@@ -35,13 +35,17 @@ happy_messages = ["Hôm nay trông cụ vui thế ạ, cụ muốn nghe nhạc k
                   "Hôm nay trông yêu đời thế ạ, cụ muốn nghe nhạc không ạ",
                   "Cụ hôm nay thần thái tốt vậy, cụ muốn nghe một bài hát không ạ"]
 
-sad_messages = ["Hôm nay cụ có chuyện gì ạ",
-                  "Hôm nay không tốt à cụ",
-                  "Cháu giúp gì cho cụ được không"]
+sad_messages = ["Cụ hôm nay có gì không vui ạ. Cháu gọi con trai cụ nhé",
+                  "Hôm nay cụ buồn vậy. Cháu gọi cho con trai cụ nha",
+                  "Cháu gọi cho cháu trai cụ nhé"]
 
 happy_responses = [{"url":0, "content" : "vâng ạ"},
                   {"url":1, "content" : "Dạ"},
                   {"url":2, "content" : "Dạ chúc cụ một ngày vui vẻ"}]
+
+sad_responses = [{"url":0, "content" : "Vâng cháu gọi luôn ạ"},
+                  {"url":1, "content" : "Dạ, cháu gọi đây ạ"},
+                  {"url":2, "content" : "Vâng cháu gọi đây"}]
 
 current_session = ""
 last_time = 0
@@ -94,6 +98,10 @@ def answer():
     data = send_request_nlp(message)
     if data['code'] == 0 and emotion == 'happy':
         result = random.choice(happy_responses)
+        code = 0
+        message = ''
+    elif data['code'] == 0 and (emotion == 'sad' or emotion == 'angry'):
+        result = random.choice(sad_responses)
         code = 0
         message = ''
     else:

@@ -44,14 +44,18 @@ happy_responses = [{"url":0, "content" : "vâng ạ"},
                   {"url":2, "content" : "Dạ chúc cụ một ngày vui vẻ"}]
 
 current_session = ""
+last_time = 0
 
 @app.route('/api/detect', methods=['POST'])
 def detect():
-    global current_session
-    if current_session != '':
+    global current_session, last_time
+    duration = time.time() - last_time
+    if current_session != '' and duration < 15:
         response = generate_response(1002, 'Processing', '')
         return response
+
     current_session = random_string(10)
+    last_time = time.time()
 
     file_predict = request.files[IMAGE_PREDICT]
     mime_type = file_predict.content_type
@@ -85,17 +89,19 @@ def detect():
 @app.route('/api/answer', methods=['POST'])
 def answer():
     req = request.get_json(silent=True, force=True)
-    print(req)
     emotion = req['emotion']
     message = req['message']
     data = send_request_nlp(message)
     if data['code'] == 0 and emotion == 'happy':
         result = random.choice(happy_responses)
         code = 0
+        message = ''
     else:
         code = -1
-        result = {"url":0, "content" : "Bà ơi cháu mới học chưa biết nhiều. Từ từ đã bà nhé"}
-    response = generate_response(code, '', result)
+        result = {"url":-1, "content" : "Error"}
+        message = 'Bà ơi cháu mới học chưa biết nhiều đâu'
+
+    response = generate_response(code, message, result)
     global current_session
     current_session = ""
     return response

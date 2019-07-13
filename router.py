@@ -17,6 +17,8 @@ from scipy import misc
 import random
 import requests
 import string
+import numpy as np
+from PIL import Image
 
 from push_notification import PushNotification
 
@@ -60,8 +62,9 @@ def detect():
     file_name = generate_name(secure_filename(file_predict.filename))
     file_predict_path = os.path.join(DATA_PATH, file_name)
     file_predict.save(file_predict_path)
-    image = misc.imread(file_predict_path)/255.
-
+    #image = misc.imread(image = Image.open(image_stream))/255.
+    #Image.open(image_stream)image = Image.open(image_stream)
+    image = np.array(Image.open(file_predict_path)).astype(float)/255.
     image = 0.2126 * image[:,:,0] + 0.7152 * image[:,:,1] + 0.0722 * image[:,:,2]
     image =image.astype('float')
     start_time = time.time()
@@ -143,5 +146,5 @@ def send_request_nlp(message):
 if __name__ == '__main__':
     global pusher
     pusher = PushNotification()
-    print("Starting app on port 8686")
-    app.run(threaded=True, debug=False, port=6886,host = '0.0.0.0')
+    print("Starting app on port 3689")
+    app.run(threaded=True, debug=False, port=3689,host = '0.0.0.0')

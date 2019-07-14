@@ -8,10 +8,10 @@ class PushNotification:
     def __init__(self):
         cert_path = os.path.join(DATA_PATH, 'Certificates.pem')
         self.client = APNSSandboxClient(certificate=cert_path,
-                    default_error_timeout=1,
+                    default_error_timeout=10,
                     default_expiration_offset=2592000,
-                    default_batch_size=10,
-                    default_retries=1)
+                    default_batch_size=100,
+                    default_retries=5)
         self.token = 'D1C879F76E14A76DDCD804B592D0FE735762E19E7E87C09449BABFC46353B643'
 
     def push_to_client(self, message):
@@ -30,6 +30,3 @@ class PushNotification:
                   launch_image='path/to/image.jpg',
                   extra={'custom': 'data'})
         return res
-
-# pusher = PushNotification()
-# pusher.push_to_client('Hello Dat')

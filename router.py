@@ -19,6 +19,7 @@ import requests
 import string
 import numpy as np
 from PIL import Image
+import cv2
 
 from push_notification import PushNotification
 
@@ -31,6 +32,9 @@ cors = CORS(app)
 pusher = None
 current_milli_time = lambda: int(round(time.time() * 1000))
 
+GRAND_PARENT = 1
+RELATIVES = [3]
+
 happy_messages = ["Hôm nay trông cụ vui thế ạ, cụ muốn nghe nhạc không ạ",
                   "Hôm nay trông yêu đời thế ạ, cụ muốn nghe nhạc không ạ",
                   "Cụ hôm nay thần thái tốt vậy, cụ muốn nghe một bài hát không ạ"]
@@ -39,13 +43,19 @@ sad_messages = ["Cụ hôm nay có gì không vui ạ. Cháu gọi con trai cụ
                   "Hôm nay cụ buồn vậy. Cháu gọi cho con trai cụ nha",
                   "Cháu gọi cho cháu trai cụ nhé"]
 
-happy_responses = [{"url":0, "content" : "vâng ạ"},
-                  {"url":1, "content" : "Dạ"},
-                  {"url":2, "content" : "Dạ chúc cụ một ngày vui vẻ"}]
+happy_responses = [{"url":0, "message" : "vâng ạ", "action": 2},
+                  {"url":1, "message" : "Dạ", "action": 2},
+                  {"url":2, "message" : "Dạ chúc cụ một ngày vui vẻ", "action": 2}]
 
-sad_responses = [{"url":0, "content" : "Vâng cháu gọi luôn ạ"},
-                  {"url":1, "content" : "Dạ, cháu gọi đây ạ"},
-                  {"url":2, "content" : "Vâng cháu gọi đây"}]
+sad_responses = [{"url":0, "message" : "Vâng cháu gọi luôn ạ",  "action": 2},
+                  {"url":1, "message" : "Dạ, cháu gọi đây ạ" ,  "action": 2},
+                  {"url":2, "message" : "Vâng cháu gọi đây",  "action": 2}]
+
+relatives_responses = [{"url":0, "message" : "Cháu Việt sang chơi cụ ơi", "action": 1}]
+
+
+guests_responses = [{"url":0, "message" : "Cụ ơi có khách lạ", "action": 0},
+                      {"url":0, "message" : "Cụ ơi nhà có khách", "action": 0}]
 
 current_session = ""
 last_time = 0
@@ -63,32 +73,28 @@ def detect():
 
     file_predict = request.files[IMAGE_PREDICT]
     mime_type = file_predict.content_type
-    if mime_type not in ['image/png', 'image/jpg', 'image/jpeg']:
-        response = generate_response(1001, 'Image have to png or jpg format')
-        return response
+    # if mime_type not in ['image/png', 'image/jpg', 'image/jpeg']:
+    #     response = generate_response(1001, 'Image have to png or jpg format')
+    #     return response
 
     file_name = generate_name(secure_filename(file_predict.filename))
     file_predict_path = os.path.join(DATA_PATH, file_name)
     file_predict.save(file_predict_path)
-    #image = misc.imread(image = Image.open(image_stream))/255.
-    #Image.open(image_stream)image = Image.open(image_stream)
-    image = np.array(Image.open(file_predict_path)).astype(float)/255.
-    image = 0.2126 * image[:,:,0] + 0.7152 * image[:,:,1] + 0.0722 * image[:,:,2]
-    image =image.astype('float')
-    start_time = time.time()
-    # global detector
-    results = emotion_model.predict_([image])
-    if results[0] == 'happy':
-        mesage = random.choice(happy_messages)
-    elif results[0] == 'sad' or results[0] == 'angry':
-        mesage = random.choice(sad_messages)
-    else:
-        mesage = 'Cháu thấy lạ ghê ạ'
 
-    mesage = {"emotion": results[0], "message":mesage}
-    send_sync_push("Thread-1", mesage)
-    response = generate_response(0, '', results)
-    os.remove(file_predict_path)
+    face_response = send_request_face(file_predict_path)
+
+    if len(face_response['data']) > 0:
+        face_id = int(face_response['data'][0]['id'])
+    elif len(face_response['data']) == 0:
+        face_id = -1
+
+    if face_id == GRAND_PARENT:
+        response = handle_grandparent(file_predict_path)
+    elif face_id in RELATIVES:
+        response = handle_relatives(face_id)
+    else:
+        response = handle_guest()
+
     return response
 
 
@@ -108,12 +114,55 @@ def answer():
         message = ''
     else:
         code = -1
-        result = {"url":-1, "content" : "Error"}
+        result = {"url":-1, "content" : "Error", "action": 0}
         message = 'Bà ơi cháu mới học chưa biết nhiều đâu'
 
     response = generate_response(code, message, result)
     global current_session
     current_session = ""
+    return response
+
+@app.route('/api/fall', methods=['POST'])
+def fall():
+    return ''
+
+def handle_grandparent(file_predict_path):
+    print('handle_grandparent')
+    np_image = np.array(Image.open(file_predict_path)).astype(float)
+    face_image = cv2.resize(np_image, (48, 48), interpolation=cv2.INTER_LINEAR)
+
+    image = face_image/255.
+    image = 0.2126 * image[:,:,0] + 0.7152 * image[:,:,1] + 0.0722 * image[:,:,2]
+    image =image.astype('float')
+    start_time = time.time()
+    # global detector
+    results = emotion_model.predict_([image])
+    if results[0] == 'happy':
+        mesage = random.choice(happy_messages)
+    elif results[0] == 'sad' or results[0] == 'angry':
+        mesage = random.choice(sad_messages)
+    else:
+        mesage = 'Cháu thấy lạ ghê ạ'
+
+    mesage = {"emotion": results[0], "message":mesage}
+    send_sync_push("Thread-1", mesage)
+    response = generate_response(0, '', results)
+    os.remove(file_predict_path)
+    return response
+
+
+def handle_relatives(face_id):
+    print('handle_relatives')
+    message = relatives_responses[0]
+    send_sync_push("Thread-2", message)
+    response = generate_response(0, 'handle_relatives', '')
+    return response
+
+
+def handle_guest():
+    message = random.choice(guests_responses)
+    send_sync_push("Thread-3", message)
+    response = generate_response(0, 'handle_guest', '')
     return response
 
 def generate_response(code=0, message='', data=None):
@@ -155,6 +204,14 @@ def send_request_nlp(message):
     DATA = {'question':message, "chat_session_id" : ""}
     HEADERS = {'Content-Type': 'application/json', 'ZBOT-AUTHORIZATION-KEY': 'bkNVUzV0azlYTDB4cWxkRE0zTnViR0VvRnpWY2U0STY='}
     response = requests.post(URL, data = json.dumps(DATA), headers = HEADERS)
+    data = response.json()
+    print(data)
+    return data
+
+def send_request_face(file_path):
+    URL = "http://0.0.0.0:9999/v1/api/predict"
+    FILES = {'image_predict': open(file_path,'rb')}
+    response = requests.post(URL, files=FILES)
     data = response.json()
     print(data)
     return data
